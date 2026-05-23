@@ -22,6 +22,14 @@ describe('NumberInput', () => {
     expect(screen.getByRole('spinbutton')).toHaveAccessibleDescription('Helper text here');
   });
 
+  it('reports valid state by default and preserves a supplied aria-invalid value', () => {
+    const { rerender } = render(<NumberInput onChange={vi.fn()} />);
+    expect(screen.getByRole('spinbutton')).toHaveAttribute('aria-invalid', 'false');
+
+    rerender(<NumberInput aria-invalid="grammar" onChange={vi.fn()} />);
+    expect(screen.getByRole('spinbutton')).toHaveAttribute('aria-invalid', 'grammar');
+  });
+
   it('preserves supplied descriptions when it adds helper text', () => {
     render(
       <>

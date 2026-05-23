@@ -131,7 +131,7 @@ function NumberInput({
           disabled={disabled}
           readOnly={readOnly}
           aria-describedby={describedBy}
-          aria-invalid={hasError ? true : ariaInvalid}
+          aria-invalid={hasError ? true : (ariaInvalid ?? false)}
           className={cn(
             'flex h-10 w-full rounded-md border bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-foreground ring-offset-background',
             'placeholder:text-muted-foreground',
