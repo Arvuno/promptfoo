@@ -1,4 +1,4 @@
-import type { Assertion, AssertionOrSet, AssertionType } from '@promptfoo/types';
+import type { Assertion, AssertionType } from '@promptfoo/types';
 
 export const ARRAY_VALUE_ASSERTION_TYPES = new Set<AssertionType>([
   'contains-any',
@@ -415,18 +415,25 @@ export function getAssertionValueError(assertion: Assertion): string | undefined
 }
 
 export function getFirstRunnableAssertionValueError(
-  assertions: AssertionOrSet[] | undefined,
+  assertions: unknown[] | undefined,
 ): string | undefined {
   for (const assertion of assertions ?? []) {
+    if (!isRecord(assertion) || typeof assertion.type !== 'string') {
+      return 'Select a valid assertion type before running.';
+    }
+
     if (assertion.type === 'assert-set') {
-      const nestedError = assertion.assert.map(getRunnableAssertionValueError).find(Boolean);
+      if (!Array.isArray(assertion.assert)) {
+        return 'Select a valid assertion type before running.';
+      }
+      const nestedError = getFirstRunnableAssertionValueError(assertion.assert);
       if (nestedError) {
         return nestedError;
       }
       continue;
     }
 
-    const error = getRunnableAssertionValueError(assertion);
+    const error = getRunnableAssertionValueError(assertion as Assertion);
     if (error) {
       return error;
     }

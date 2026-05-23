@@ -32,6 +32,12 @@ export interface SetupReadiness {
   plannedBaseRequestCount?: number;
 }
 
+interface NormalizedPrompt {
+  raw: string;
+  id?: string;
+  label?: string;
+}
+
 const PROVIDER_OPTION_KEYS = new Set([
   'id',
   'label',
@@ -45,6 +51,10 @@ const PROVIDER_OPTION_KEYS = new Set([
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function getVars(testCase: Record<string, unknown>): Record<string, unknown> {
+  return isRecord(testCase.vars) ? testCase.vars : {};
 }
 
 function isProviderMapShape(value: Record<string, unknown>): boolean {
@@ -86,7 +96,9 @@ function hasInvalidAssertionValue(testCase: unknown): boolean {
 
 function getAssertions(testCase: unknown): AssertionOrSet[] {
   return isRecord(testCase) && Array.isArray(testCase.assert)
-    ? (testCase.assert as AssertionOrSet[])
+    ? (testCase.assert.filter(
+        (assertion) => isRecord(assertion) && typeof assertion.type === 'string',
+      ) as AssertionOrSet[])
     : [];
 }
 
@@ -108,22 +120,86 @@ function getEffectiveAssertions(
   return [...(disablesDefaultAsserts ? [] : defaultAssertions), ...getAssertions(testCase)];
 }
 
-function hasConfiguredComparisonAssertion(
-  tests: UnifiedConfig['tests'] | undefined,
-  defaultAssertions: AssertionOrSet[],
-  type: ComparisonAssertionType,
-): boolean {
-  if (!Array.isArray(tests)) {
-    return countTests(tests) > 0 && containsComparisonAssertion(defaultAssertions, type);
+function referenceMatchesValue(reference: string, value: string | undefined): boolean {
+  if (!value) {
+    return false;
   }
 
-  return tests.some((testCase) => {
-    if (!isRecord(testCase)) {
-      return false;
-    }
+  return (
+    value === reference ||
+    (reference.endsWith('*') && value.startsWith(reference.slice(0, -1))) ||
+    value.startsWith(`${reference}:`)
+  );
+}
 
-    return containsComparisonAssertion(getEffectiveAssertions(testCase, defaultAssertions), type);
-  });
+function promptMatchesReference(prompt: NormalizedPrompt, reference: string): boolean {
+  return (
+    referenceMatchesValue(reference, prompt.raw) ||
+    referenceMatchesValue(reference, prompt.label) ||
+    referenceMatchesValue(reference, prompt.id)
+  );
+}
+
+function providerMatchesReference(provider: ProviderOptions, reference: string): boolean {
+  return (
+    (hasRunnableProviderId(provider) && referenceMatchesValue(reference, provider.id)) ||
+    (typeof provider.label === 'string' && referenceMatchesValue(reference, provider.label))
+  );
+}
+
+function isAllowedByReferences<T>(
+  item: T,
+  references: unknown,
+  matches: (item: T, reference: string) => boolean,
+): boolean {
+  if (!Array.isArray(references)) {
+    return true;
+  }
+
+  return references.some((reference) => typeof reference === 'string' && matches(item, reference));
+}
+
+function getRunnablePromptsForTest(
+  testCase: Record<string, unknown>,
+  providers: ProviderOptions[],
+  prompts: NormalizedPrompt[],
+): NormalizedPrompt[] {
+  const promptsAllowedByTest = prompts.filter((prompt) =>
+    isAllowedByReferences(prompt, testCase.prompts, promptMatchesReference),
+  );
+  if (providers.length === 0) {
+    return promptsAllowedByTest;
+  }
+
+  const selectedProviders = providers.filter((provider) =>
+    isAllowedByReferences(provider, testCase.providers, providerMatchesReference),
+  );
+  return promptsAllowedByTest.filter((prompt) =>
+    selectedProviders.some((provider) =>
+      isAllowedByReferences(prompt, provider.prompts, promptMatchesReference),
+    ),
+  );
+}
+
+function countOutputsForTest(
+  testCase: Record<string, unknown>,
+  providers: ProviderOptions[],
+  prompts: NormalizedPrompt[],
+): number {
+  return providers
+    .filter((provider) =>
+      isAllowedByReferences(provider, testCase.providers, providerMatchesReference),
+    )
+    .reduce(
+      (count, provider) =>
+        count +
+        prompts.filter(
+          (prompt) =>
+            isAllowedByReferences(prompt, testCase.prompts, promptMatchesReference) &&
+            isAllowedByReferences(prompt, provider.prompts, promptMatchesReference),
+        ).length,
+      0,
+    );
 }
 
 function hasMaxScoreWithoutScoringAssertion(
@@ -150,18 +226,37 @@ function hasMaxScoreWithoutScoringAssertion(
 }
 
 function getComparisonSetupIssues(
-  providerCount: number,
-  promptCount: number,
+  providers: ProviderOptions[],
+  prompts: NormalizedPrompt[],
   tests: UnifiedConfig['tests'] | undefined,
   defaultAssertions: AssertionOrSet[],
 ): SetupIssue[] {
   const issues: SetupIssue[] = [];
-  const outputCount = providerCount * promptCount;
-  const hasSelectBest = hasConfiguredComparisonAssertion(tests, defaultAssertions, 'select-best');
-  const hasMaxScore = hasConfiguredComparisonAssertion(tests, defaultAssertions, 'max-score');
+  const providerCount = providers.length;
+  const promptCount = prompts.length;
+  let hasInsufficientSelectBest = false;
+  let hasInsufficientMaxScore = false;
 
-  if (outputCount < 2 && (hasSelectBest || hasMaxScore)) {
-    const label = hasSelectBest ? 'Choose best output' : 'Choose highest score';
+  if (Array.isArray(tests)) {
+    for (const testCase of tests) {
+      if (!isRecord(testCase)) {
+        continue;
+      }
+
+      const assertions = getEffectiveAssertions(testCase, defaultAssertions);
+      const outputCount = countOutputsForTest(testCase, providers, prompts);
+      hasInsufficientSelectBest ||=
+        outputCount < 2 && containsComparisonAssertion(assertions, 'select-best');
+      hasInsufficientMaxScore ||=
+        outputCount < 2 && containsComparisonAssertion(assertions, 'max-score');
+    }
+  } else if (countTests(tests) > 0 && providerCount * promptCount < 2) {
+    hasInsufficientSelectBest = containsComparisonAssertion(defaultAssertions, 'select-best');
+    hasInsufficientMaxScore = containsComparisonAssertion(defaultAssertions, 'max-score');
+  }
+
+  if (hasInsufficientSelectBest || hasInsufficientMaxScore) {
+    const label = hasInsufficientSelectBest ? 'Choose best output' : 'Choose highest score';
     // Route the user to whichever axis is shorter — adding to the longer one would not increase
     // outputs per test case.
     issues.push({
@@ -184,11 +279,20 @@ function getComparisonSetupIssues(
 
 export function extractVariablesFromPrompts(prompts: string[]): string[] {
   const variables = new Set<string>();
-  const variablePattern = /{{\s*(\w+)\s*}}/g;
+  const expressionPattern = /{{\s*([^{}\s|]+)\s*(?:\|[^}]+)?}}|{%\s*(?:if|elif)\s+([^{}\s]+).*?%}/g;
+  const forLoopPattern = /{%\s*for\s+(\w+)\s+in\s+([^{}\s]+).*?%}/g;
 
   for (const prompt of prompts) {
-    for (const match of prompt.matchAll(variablePattern)) {
-      variables.add(match[1]);
+    const uncommentedPrompt = prompt.replace(/{#[\s\S]*?#}/g, '');
+    for (const match of uncommentedPrompt.matchAll(expressionPattern)) {
+      const variable = match[1] || match[2];
+      if (variable) {
+        variables.add(variable);
+      }
+    }
+    for (const match of uncommentedPrompt.matchAll(forLoopPattern)) {
+      variables.delete(match[1]);
+      variables.add(match[2]);
     }
   }
 
@@ -251,31 +355,47 @@ export function normalizeProviders(
 }
 
 export function normalizePrompts(prompts: UnifiedConfig['prompts'] | undefined): string[] {
+  return normalizePromptCandidates(prompts).map((prompt) => prompt.raw);
+}
+
+function normalizePromptCandidates(
+  prompts: UnifiedConfig['prompts'] | undefined,
+): NormalizedPrompt[] {
   if (typeof prompts === 'string') {
-    return prompts.trim() === '' ? [] : [prompts];
+    return prompts.trim() === '' ? [] : [{ raw: prompts, label: prompts }];
   }
 
   if (Array.isArray(prompts)) {
     return prompts
       .map((prompt) => {
         if (typeof prompt === 'string') {
-          return prompt;
+          return { raw: prompt, label: prompt };
         }
         if (isRecord(prompt)) {
           if (typeof prompt.raw === 'string' && prompt.raw.trim() !== '') {
-            return prompt.raw;
+            return {
+              raw: prompt.raw,
+              id: typeof prompt.id === 'string' ? prompt.id : undefined,
+              label: typeof prompt.label === 'string' ? prompt.label : undefined,
+            };
           }
           if (typeof prompt.id === 'string') {
-            return prompt.id;
+            return {
+              raw: prompt.id,
+              id: prompt.id,
+              label: typeof prompt.label === 'string' ? prompt.label : undefined,
+            };
           }
         }
-        return '';
+        return undefined;
       })
-      .filter((prompt): prompt is string => prompt.trim() !== '');
+      .filter((prompt): prompt is NormalizedPrompt => Boolean(prompt?.raw.trim()));
   }
 
   if (isRecord(prompts)) {
-    return Object.keys(prompts).filter((prompt) => prompt.trim() !== '');
+    return Object.entries(prompts).flatMap(([raw, label]) =>
+      raw.trim() !== '' && typeof label === 'string' ? [{ raw, label }] : [],
+    );
   }
 
   return [];
@@ -317,9 +437,11 @@ export function countTests(tests: UnifiedConfig['tests'] | undefined): number {
 }
 
 export function getSetupReadiness(config: Partial<UnifiedConfig>): SetupReadiness {
-  const providerCount = normalizeProviders(config.providers).length;
-  const prompts = normalizePrompts(config.prompts);
-  const promptCount = prompts.length;
+  const providers = normalizeProviders(config.providers);
+  const providerCount = providers.length;
+  const promptCandidates = normalizePromptCandidates(config.prompts);
+  const prompts = promptCandidates.map((prompt) => prompt.raw);
+  const promptCount = promptCandidates.length;
   const testCount = countTests(config.tests);
   const requiredVariables = extractVariablesFromPrompts(prompts);
   const issues: SetupIssue[] = [];
@@ -357,8 +479,13 @@ export function getSetupReadiness(config: Partial<UnifiedConfig>): SetupReadines
             return [];
           }
 
-          const testVars = 'vars' in testCase && isRecord(testCase.vars) ? testCase.vars : {};
-          const hasMissingVariables = requiredVariables.some(
+          const testVars = getVars(testCase);
+          const testRequiredVariables = extractVariablesFromPrompts(
+            getRunnablePromptsForTest(testCase, providers, promptCandidates).map(
+              (prompt) => prompt.raw,
+            ),
+          );
+          const hasMissingVariables = testRequiredVariables.some(
             (variable) => !(variable in testVars) && !(variable in defaultVars),
           );
           return hasMissingVariables ? [index] : [];
@@ -379,7 +506,7 @@ export function getSetupReadiness(config: Partial<UnifiedConfig>): SetupReadines
 
   const defaultAssertions = getAssertions(config.defaultTest);
   issues.push(
-    ...getComparisonSetupIssues(providerCount, promptCount, config.tests, defaultAssertions),
+    ...getComparisonSetupIssues(providers, promptCandidates, config.tests, defaultAssertions),
   );
 
   const assertionVariableIssues = Array.isArray(config.tests)
@@ -388,7 +515,7 @@ export function getSetupReadiness(config: Partial<UnifiedConfig>): SetupReadines
           return [];
         }
 
-        const testVars = 'vars' in testCase && isRecord(testCase.vars) ? testCase.vars : {};
+        const testVars = getVars(testCase);
         const assertions = getEffectiveAssertions(testCase, defaultAssertions);
         const missingVariables = getMissingAssertionVariables(assertions, {
           ...defaultVars,
@@ -414,7 +541,16 @@ export function getSetupReadiness(config: Partial<UnifiedConfig>): SetupReadines
   const testCasesWithInvalidAssertions = Array.isArray(config.tests)
     ? config.tests.flatMap((testCase, index) => (hasInvalidAssertionValue(testCase) ? [index] : []))
     : [];
-  const defaultTestHasInvalidAssertions = hasInvalidAssertionValue(config.defaultTest);
+  const defaultAssertionsApply =
+    !Array.isArray(config.tests) ||
+    config.tests.some(
+      (testCase) =>
+        !isRecord(testCase) ||
+        !isRecord(testCase.options) ||
+        testCase.options.disableDefaultAsserts !== true,
+    );
+  const defaultTestHasInvalidAssertions =
+    defaultAssertionsApply && hasInvalidAssertionValue(config.defaultTest);
 
   if (defaultTestHasInvalidAssertions || testCasesWithInvalidAssertions.length > 0) {
     const invalidTestsMessage =

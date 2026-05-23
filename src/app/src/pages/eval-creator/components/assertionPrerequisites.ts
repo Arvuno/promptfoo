@@ -7,13 +7,24 @@ const CONTEXT_ASSERTION_TYPES = new Set([
   'not-context-relevance',
 ]);
 
-function getAtomicAssertions(assertions: AssertionOrSet[] | undefined) {
-  return (assertions ?? []).flatMap((assertion) =>
-    assertion.type === 'assert-set' ? assertion.assert : [assertion],
-  );
+function getAtomicAssertions(assertions: unknown[] | undefined): AssertionOrSet[] {
+  return (assertions ?? []).flatMap((assertion) => {
+    if (!assertion || typeof assertion !== 'object' || !('type' in assertion)) {
+      return [];
+    }
+
+    const typedAssertion = assertion as AssertionOrSet;
+    return typedAssertion.type === 'assert-set' && Array.isArray(typedAssertion.assert)
+      ? typedAssertion.assert.filter((nestedAssertion) =>
+          Boolean(
+            nestedAssertion && typeof nestedAssertion === 'object' && 'type' in nestedAssertion,
+          ),
+        )
+      : [typedAssertion];
+  });
 }
 
-export function getRequiredAssertionVariables(assertions: AssertionOrSet[] | undefined): string[] {
+export function getRequiredAssertionVariables(assertions: unknown[] | undefined): string[] {
   const contextAssertions = getAtomicAssertions(assertions).filter((assertion) =>
     CONTEXT_ASSERTION_TYPES.has(assertion.type),
   );
@@ -40,11 +51,17 @@ function hasUsableVariable(value: unknown): boolean {
   );
 }
 
+function hasUsableAssertionVariable(variable: string, value: unknown): boolean {
+  return variable === 'query'
+    ? typeof value === 'string' && value.trim() !== ''
+    : hasUsableVariable(value);
+}
+
 export function getMissingAssertionVariables(
-  assertions: AssertionOrSet[] | undefined,
+  assertions: unknown[] | undefined,
   vars: Record<string, unknown>,
 ): string[] {
   return getRequiredAssertionVariables(assertions).filter(
-    (variable) => !hasUsableVariable(vars[variable]),
+    (variable) => !hasUsableAssertionVariable(variable, vars[variable]),
   );
 }

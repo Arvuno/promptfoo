@@ -156,6 +156,21 @@ describe('setupReadiness', () => {
       expect(readiness.plannedBaseRequestCount).toBe(1);
     });
 
+    it('checks variables only for prompts allowed by the test and selected providers', () => {
+      const readiness = getSetupReadiness({
+        providers: [{ id: 'openai:gpt-4.1', prompts: ['Topic prompt'] }],
+        prompts: [
+          { raw: 'Write about {{topic}}', label: 'Topic prompt' },
+          { raw: 'Reveal {{secret}}', label: 'Other prompt' },
+        ],
+        tests: [{ prompts: ['Topic prompt'], vars: { topic: 'reliability' } }],
+      });
+
+      expect(readiness.isReadyToRun).toBe(true);
+      expect(readiness.requiredVariables).toEqual(['topic', 'secret']);
+      expect(readiness.testCasesMissingVariables).toEqual([]);
+    });
+
     it('blocks context assertions until required query and context values are supplied', () => {
       const readiness = getSetupReadiness({
         providers: ['openai:gpt-4.1'],
@@ -182,6 +197,22 @@ describe('setupReadiness', () => {
 
       expect(readiness.isReadyToRun).toBe(true);
       expect(readiness.testCasesMissingAssertionVariables).toEqual([]);
+    });
+
+    it('requires context assertion queries to be strings at readiness time', () => {
+      const readiness = getSetupReadiness({
+        providers: ['openai:gpt-4.1'],
+        prompts: ['Answer using retrieved material'],
+        tests: [
+          {
+            assert: [{ type: 'context-faithfulness' }],
+            vars: { query: ['not a runtime query'], context: ['retrieved passage'] },
+          },
+        ],
+      });
+
+      expect(readiness.isReadyToRun).toBe(false);
+      expect(readiness.testCasesMissingAssertionVariables).toEqual([0]);
     });
 
     it('blocks imported inline tests with incomplete assertion values', () => {
@@ -218,6 +249,29 @@ describe('setupReadiness', () => {
         message: 'Add required assertion values in your default test in YAML.',
         stepId: 3,
       });
+    });
+
+    it('ignores invalid default assertions when every test disables default assertions', () => {
+      const readiness = getSetupReadiness({
+        providers: ['openai:gpt-4.1'],
+        prompts: ['Write a summary'],
+        defaultTest: { assert: [{ type: 'contains-any', value: [] }] },
+        tests: [{ options: { disableDefaultAsserts: true } }],
+      });
+
+      expect(readiness.isReadyToRun).toBe(true);
+      expect(readiness.defaultTestHasInvalidAssertions).toBe(false);
+    });
+
+    it('surfaces null YAML assertion entries as invalid instead of throwing', () => {
+      const readiness = getSetupReadiness({
+        providers: ['openai:gpt-4.1'],
+        prompts: ['Write a summary'],
+        tests: [{ assert: [null] as any }],
+      });
+
+      expect(readiness.isReadyToRun).toBe(false);
+      expect(readiness.testCasesWithInvalidAssertions).toEqual([0]);
     });
 
     it('blocks imported webhook checks without a configured endpoint', () => {
@@ -538,6 +592,21 @@ describe('setupReadiness', () => {
       ).toBe(true);
     });
 
+    it('requires multiple outputs after applying a test provider filter', () => {
+      const readiness = getSetupReadiness({
+        providers: ['openai:gpt-4.1', 'anthropic:messages:claude-sonnet-4'],
+        prompts: ['Write a reply'],
+        tests: [
+          {
+            providers: ['openai:gpt-4.1'],
+            assert: [{ type: 'select-best', value: 'Choose the clearer reply' }],
+          },
+        ],
+      });
+
+      expect(readiness.issues).toContainEqual(expect.objectContaining({ id: 'comparisonOutputs' }));
+    });
+
     it('routes select-best fixes to the axis the user can still grow', () => {
       // One provider, no prompts → the comparisonOutputs fix is in step 2.
       const oneProviderNoPrompts = getSetupReadiness({
@@ -637,6 +706,15 @@ describe('setupReadiness', () => {
           '{{ no spaces }}',
         ]),
       ).toEqual(['name', 'location']);
+    });
+
+    it('recognizes filtered, dotted, and conditional Nunjucks variables', () => {
+      expect(
+        extractVariablesFromPrompts([
+          '{{ topic | lower }} {{ user.name }}',
+          '{% if audience %}Tailor the response{% endif %}',
+        ]),
+      ).toEqual(['topic', 'user.name', 'audience']);
     });
   });
 });
