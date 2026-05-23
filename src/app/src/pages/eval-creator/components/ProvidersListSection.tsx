@@ -86,7 +86,7 @@ export function ProvidersListSection({ providers, onChange }: ProvidersListSecti
     onChange([...providers, provider]);
     setIsAddDialogOpen(false);
     showToast(
-      `${getProviderLabel(provider)} added. Each provider receives every prompt and test case when you run.`,
+      `${getProviderLabel(provider)} added. By default it receives every prompt and test case; YAML routing can narrow that set.`,
       'success',
     );
   };

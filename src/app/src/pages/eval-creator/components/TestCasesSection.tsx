@@ -25,6 +25,7 @@ import { testCaseFromCsvRow } from '@promptfoo/csv';
 import { TestCaseSchema } from '@promptfoo/types';
 import { getMissingAssertionVariables } from './assertionPrerequisites';
 import { getFirstRunnableAssertionValueError } from './assertionValueValidation';
+import { getRequiredVariablesForTest } from './setupReadiness';
 import TestCaseDialog from './TestCaseDialog';
 import type { CsvRow, TestCase, TestGeneratorConfig } from '@promptfoo/types';
 
@@ -183,7 +184,7 @@ interface TestCaseIssues {
 
 function getTestCaseIssues(
   testCase: TestCase,
-  varsList: string[],
+  requiredPromptVariables: string[],
   defaultTest: TestCase | undefined,
 ): TestCaseIssues {
   const testCaseVars = Object.keys(testCase.vars || {});
@@ -192,7 +193,7 @@ function getTestCaseIssues(
     testCase.options?.disableDefaultAsserts === true ? [] : defaultTest?.assert || [];
 
   return {
-    missingPromptVariables: varsList.filter(
+    missingPromptVariables: requiredPromptVariables.filter(
       (variable) => !testCaseVars.includes(variable) && !defaultTestVars.includes(variable),
     ),
     assertionError: getFirstRunnableAssertionValueError(testCase.assert),
@@ -441,10 +442,7 @@ const TestCasesSection = ({ varsList, onOpenYamlEditor }: TestCasesSectionProps)
     event.stopPropagation();
     const duplicatedTestCase = JSON.parse(JSON.stringify(testCases[index]));
     setTestCases([...testCases, duplicatedTestCase]);
-    showToast(
-      'Test case duplicated. Each test case runs across every prompt and provider.',
-      'success',
-    );
+    showToast('Test case duplicated with its prompt and provider routing.', 'success');
   };
 
   return (
@@ -511,7 +509,7 @@ const TestCasesSection = ({ varsList, onOpenYamlEditor }: TestCasesSectionProps)
                   onClick={() => {
                     setTestCases([...testCases, getStarterExample(varsList)]);
                     showToast(
-                      'Starter test case added. Each test case runs across every prompt and provider.',
+                      'Starter test case added. By default it runs across every prompt and provider; YAML routing can narrow that set.',
                       'success',
                     );
                   }}
@@ -554,7 +552,11 @@ const TestCasesSection = ({ varsList, onOpenYamlEditor }: TestCasesSectionProps)
                 </tr>
               ) : (
                 testCases.map((testCase, index) => {
-                  const issues = getTestCaseIssues(testCase, varsList, defaultTest);
+                  const issues = getTestCaseIssues(
+                    testCase,
+                    getRequiredVariablesForTest(testCase, config),
+                    defaultTest,
+                  );
                   const hasTestCaseIssue =
                     issues.missingPromptVariables.length > 0 ||
                     Boolean(issues.assertionError) ||
@@ -679,6 +681,7 @@ const TestCasesSection = ({ varsList, onOpenYamlEditor }: TestCasesSectionProps)
           onAdd={handleAddTestCase}
           varsList={varsList}
           inheritedAssertions={defaultTest?.assert}
+          inheritedVars={defaultTest?.vars}
           initialValues={
             editingTestCaseIndex === null ? undefined : testCases[editingTestCaseIndex]
           }
@@ -701,8 +704,9 @@ const TestCasesSection = ({ varsList, onOpenYamlEditor }: TestCasesSectionProps)
             </DialogTitle>
             <DialogDescription>
               {pendingImport?.fileName} will be added to your existing {testCases.length} test case
-              {testCases.length === 1 ? '' : 's'}. Each test case runs across every prompt and
-              provider, so larger imports increase requests and potential cost.
+              {testCases.length === 1 ? '' : 's'}. Imported cases may include YAML routing that
+              narrows which prompts and providers run. Review routing to understand request count
+              and potential cost.
             </DialogDescription>
           </DialogHeader>
           {pendingImport && pendingImport.skippedCount > 0 && (
@@ -738,7 +742,7 @@ const TestCasesSection = ({ varsList, onOpenYamlEditor }: TestCasesSectionProps)
             </DialogTitle>
             <DialogDescription>
               This removes {testCaseLabelToDelete} from this evaluation. This action cannot be
-              undone. Future runs will no longer evaluate it across prompts and providers.
+              undone. Future runs will no longer include it.
               {testCases.length === 1 &&
                 ' This is your only test case; add another test case before you can run the evaluation.'}
             </DialogDescription>

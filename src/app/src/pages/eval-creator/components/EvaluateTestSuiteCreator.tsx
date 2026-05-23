@@ -336,8 +336,9 @@ const EvaluateTestSuiteCreator = () => {
                   <p className="text-sm font-medium text-primary">How evaluations work</p>
                   <h2 className="text-lg font-semibold">Compare responses against clear checks</h2>
                   <p className="text-sm text-muted-foreground">
-                    Promptfoo sends each prompt with each test case to every provider, then uses
-                    your assertions to decide whether the response passes.
+                    By default, Promptfoo sends each prompt with each test case to every provider.
+                    YAML routing can narrow those requests; assertions decide whether each response
+                    passes.
                   </p>
                 </div>
                 <ol className="grid gap-3 sm:grid-cols-3">
@@ -572,9 +573,9 @@ const EvaluateTestSuiteCreator = () => {
                           best option for your use case. Compare different models, API versions, or
                           custom implementations to optimize for quality, cost, and latency.
                           <p className="mt-2">
-                            Every additional provider receives each prompt and test case
-                            combination, increasing base requests and potentially increasing usage
-                            costs.
+                            By default, each additional provider adds prompt and test case requests.
+                            YAML routing can narrow those requests; more combinations can increase
+                            usage costs.
                           </p>
                         </InfoBox>
                       )
@@ -639,8 +640,7 @@ const EvaluateTestSuiteCreator = () => {
                             </span>
                           ))}
                           <p className="mt-2">
-                            These variables will need values in your test cases below. Each test
-                            case should provide data for all variables.
+                            Provide these values in test cases routed to prompts that use them.
                           </p>
                         </InfoBox>
                       ) : (
@@ -712,8 +712,8 @@ const EvaluateTestSuiteCreator = () => {
                         </InfoBox>
                       ) : varsList.length > 0 ? (
                         <InfoBox variant="info">
-                          <strong>Required variables:</strong> Each test case must provide values
-                          for{' '}
+                          <strong>Prompt variables:</strong> Provide values in test cases routed to
+                          prompts that use{' '}
                           {varsList.map((v, i) => (
                             <span key={v}>
                               <code className="rounded border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-xs text-foreground">

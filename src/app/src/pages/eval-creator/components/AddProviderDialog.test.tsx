@@ -173,7 +173,7 @@ describe('AddProviderDialog layout', () => {
     expect(nextScrollBody).toHaveProperty('scrollTop', 0);
     expect(screen.getByText('Step 2 of 2')).toBeInTheDocument();
     expect(screen.getByRole('dialog', { name: 'Configure Provider' })).toHaveAccessibleDescription(
-      /This provider receives every prompt and test case when you run/i,
+      /By default, it receives every prompt and test case; YAML routing can narrow that set/i,
     );
     expect(screen.getByText(/add more providers later to compare outputs/i)).toBeInTheDocument();
   });

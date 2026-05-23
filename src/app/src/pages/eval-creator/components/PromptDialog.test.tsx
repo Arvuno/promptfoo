@@ -21,7 +21,7 @@ describe('PromptDialog', () => {
 
     expect(screen.getByText('Add Prompt')).toBeInTheDocument();
     expect(screen.getByRole('dialog', { name: 'Add Prompt' })).toHaveAccessibleDescription(
-      'Each prompt runs once for every test case and provider. Use variables when the input should change between test cases.',
+      'By default, each prompt runs once for every test case and provider; YAML routing can narrow that set. Use variables when the input should change between test cases.',
     );
 
     const textField = screen.getByRole('textbox');
@@ -73,7 +73,7 @@ describe('PromptDialog', () => {
     expect(textField).toHaveFocus();
     const status = screen.getByRole('status');
     expect(status).toHaveTextContent(
-      'Prompt added. Each prompt runs across every test case and provider. Enter the next prompt.',
+      'Prompt added. By default it runs across every test case and provider; YAML routing can narrow that set. Enter the next prompt.',
     );
     expect(status).toHaveAttribute('aria-live', 'polite');
     expect(status).toHaveAttribute('aria-atomic', 'true');
@@ -129,7 +129,7 @@ describe('PromptDialog', () => {
     render(<PromptDialog {...mockProps} prompt="" />);
 
     expect(
-      screen.getByText(/Each prompt runs once for every test case and provider/i),
+      screen.getByText(/By default, each prompt runs once for every test case and provider/i),
     ).toBeInTheDocument();
     const textField = screen.getByRole('textbox');
     const addButton = screen.getByRole('button', { name: 'Add' });

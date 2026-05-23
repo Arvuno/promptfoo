@@ -5,6 +5,7 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as yaml from 'js-yaml';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import TestCaseDialog from './TestCaseDialog';
 import TestCasesSection from './TestCasesSection';
 
 // Mock the store
@@ -30,9 +31,12 @@ vi.mock('js-yaml', () => ({
 
 // Mock TestCaseDialog to avoid rendering issues
 vi.mock('./TestCaseDialog', () => ({
-  default: ({ open }: any) =>
+  default: vi.fn(({ open }: any) =>
     open ? <div data-testid="test-case-dialog">Test Case Dialog</div> : null,
+  ),
 }));
+
+const mockTestCaseDialog = vi.mocked(TestCaseDialog);
 
 describe('TestCasesSection', () => {
   const mockUpdateConfig = vi.fn();
@@ -112,6 +116,8 @@ describe('TestCasesSection', () => {
   it('exposes missing variables to assistive technology', () => {
     (useStore as any).mockReturnValue({
       config: {
+        providers: [{ id: 'openai:gpt-4.1' }],
+        prompts: ['Hello {{input}}'],
         tests: [
           {
             description: 'Test 1',
@@ -183,6 +189,8 @@ describe('TestCasesSection', () => {
   it('does not report variables supplied by default test values as missing', () => {
     (useStore as any).mockReturnValue({
       config: {
+        providers: [{ id: 'openai:gpt-4.1' }],
+        prompts: ['Hello {{input}}'],
         defaultTest: { vars: { input: 'shared input' } },
         tests: [{ description: 'Test 1', vars: {} }],
       },
@@ -196,6 +204,59 @@ describe('TestCasesSection', () => {
     );
 
     expect(screen.queryByText('Missing variables: input.')).toBeNull();
+  });
+
+  it('does not report variables from prompts excluded by test-case routing', () => {
+    (useStore as any).mockReturnValue({
+      config: {
+        providers: [{ id: 'openai:gpt-4.1' }],
+        prompts: [
+          { raw: 'Write about {{topic}}', label: 'Topic prompt' },
+          { raw: 'Reveal {{secret}}', label: 'Other prompt' },
+        ],
+        tests: [
+          {
+            description: 'Topic only',
+            prompts: ['Topic prompt'],
+            vars: { topic: 'reliability' },
+          },
+        ],
+      },
+      updateConfig: mockUpdateConfig,
+    });
+
+    render(
+      <TooltipProvider delayDuration={0}>
+        <TestCasesSection varsList={['topic', 'secret']} />
+      </TooltipProvider>,
+    );
+
+    expect(screen.queryByText('Missing variables: secret.')).toBeNull();
+  });
+
+  it('passes inherited default assertions and variables to the test-case dialog', async () => {
+    const user = userEvent.setup();
+    const defaultTest = {
+      assert: [{ type: 'context-relevance' }],
+      vars: { query: 'What changed?', context: 'The release includes a new API.' },
+    };
+    (useStore as any).mockReturnValue({
+      config: { defaultTest, tests: [] },
+      updateConfig: mockUpdateConfig,
+    });
+
+    render(
+      <TooltipProvider delayDuration={0}>
+        <TestCasesSection varsList={[]} />
+      </TooltipProvider>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Add Test Case' }));
+
+    expect(mockTestCaseDialog.mock.lastCall?.[0]).toMatchObject({
+      inheritedAssertions: defaultTest.assert,
+      inheritedVars: defaultTest.vars,
+    });
   });
 
   it('adds a deterministic starter example without silently enabling model grading', async () => {
@@ -227,7 +288,7 @@ describe('TestCasesSection', () => {
       ],
     });
     expect(mockShowToast).toHaveBeenCalledWith(
-      'Starter test case added. Each test case runs across every prompt and provider.',
+      'Starter test case added. By default it runs across every prompt and provider; YAML routing can narrow that set.',
       'success',
     );
     expect(mockUpdateConfig).not.toHaveBeenCalledWith(
@@ -596,7 +657,7 @@ describe('TestCasesSection', () => {
 
       await user.upload(fileInput, file);
       expect(
-        await screen.findByText(/larger imports increase requests and potential cost/i),
+        await screen.findByText(/Review routing to understand request count and potential cost/i),
       ).toBeInTheDocument();
       expect(mockUpdateConfig).not.toHaveBeenCalled();
       await confirmPendingImport(user, 2);
@@ -839,7 +900,7 @@ describe('TestCasesSection', () => {
       await user.upload(fileInput, file);
       expect(
         await screen.findByRole('dialog', { name: 'Import 1 test case?' }),
-      ).toHaveAccessibleDescription(/Each test case runs across every prompt and provider/);
+      ).toHaveAccessibleDescription(/Imported cases may include YAML routing/);
       await user.click(screen.getByRole('button', { name: 'Cancel' }));
 
       expect(mockUpdateConfig).not.toHaveBeenCalled();
@@ -972,7 +1033,7 @@ describe('TestCasesSection', () => {
         ],
       });
       expect(mockShowToast).toHaveBeenCalledWith(
-        'Test case duplicated. Each test case runs across every prompt and provider.',
+        'Test case duplicated with its prompt and provider routing.',
         'success',
       );
     });
@@ -1005,7 +1066,7 @@ describe('TestCasesSection', () => {
       expect(
         screen.getByRole('dialog', { name: 'Delete test case 1?' }),
       ).toHaveAccessibleDescription(
-        /This removes test case 1 from this evaluation. This action cannot be undone. Future runs will no longer evaluate it across prompts and providers./,
+        /This removes test case 1 from this evaluation. This action cannot be undone. Future runs will no longer include it./,
       );
       expect(screen.getByText(/this is your only test case/i)).toBeInTheDocument();
       expect(screen.getByText(/add another test case before you can run/i)).toBeInTheDocument();

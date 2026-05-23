@@ -108,7 +108,7 @@ describe('ProvidersListSection', () => {
       { id: 'openai:gpt-4o', label: 'New model' },
     ]);
     expect(showToastMock).toHaveBeenCalledWith(
-      'New model added. Each provider receives every prompt and test case when you run.',
+      'New model added. By default it receives every prompt and test case; YAML routing can narrow that set.',
       'success',
     );
   });

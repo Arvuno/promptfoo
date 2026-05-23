@@ -44,7 +44,7 @@ describe('TestCaseForm', () => {
     const dialogTitle = screen.getByRole('heading', { name: 'Add Test Case' });
     expect(dialogTitle).toBeInTheDocument();
     expect(screen.getByRole('dialog', { name: 'Add Test Case' })).toHaveAccessibleDescription(
-      'Set inputs for one evaluation example, then add optional pass or fail checks. Each test case runs against every configured prompt and provider.',
+      'Set inputs for one evaluation example, then add optional pass or fail checks. By default, a test case runs against every configured prompt and provider; YAML routing can narrow that set.',
     );
 
     const addTestCaseButton = screen.getByRole('button', { name: 'Add Test Case' });
@@ -54,7 +54,9 @@ describe('TestCaseForm', () => {
     expect(addAnotherButton).toBeInTheDocument();
     expect(screen.getByText(/set inputs for one evaluation example/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/runs against every configured prompt and provider/i),
+      screen.getByText(
+        /By default, a test case runs against every configured prompt and provider/i,
+      ),
     ).toBeInTheDocument();
   });
 
@@ -143,7 +145,7 @@ describe('TestCaseForm', () => {
     expect(onCancel).not.toHaveBeenCalled();
     const status = screen.getByRole('status');
     expect(status).toHaveTextContent(
-      'Test case added. Each test case runs across every prompt and provider. Enter values for the next test case.',
+      'Test case added. By default it runs across every prompt and provider; YAML routing can narrow that set. Enter values for the next test case.',
     );
     expect(status).toHaveAttribute('aria-live', 'polite');
     expect(status).toHaveAttribute('aria-atomic', 'true');
@@ -226,6 +228,32 @@ describe('TestCaseForm', () => {
       'Context assertions require values for: query, context.',
     );
     expect(screen.getByRole('button', { name: 'Add Test Case' })).toBeDisabled();
+  });
+
+  it('accepts inherited context variables without saving them as local overrides', async () => {
+    renderComponent({
+      varsList: [],
+      inheritedAssertions: [{ type: 'context-faithfulness' }],
+      inheritedVars: {
+        query: 'What changed?',
+        context: 'The release includes a new API.',
+      },
+    });
+
+    const addButton = screen.getByRole('button', { name: 'Add Test Case' });
+    expect(addButton).toBeEnabled();
+    expect(screen.queryByRole('alert')).toBeNull();
+
+    await userEvent.click(addButton);
+
+    expect(onAdd).toHaveBeenCalledWith(
+      {
+        description: '',
+        vars: {},
+        assert: [],
+      },
+      true,
+    );
   });
 
   it("should call onAdd with the updated form state and shouldClose=true, then reset the form and call onCancel when the 'Update Test Case' button is clicked in edit mode", async () => {

@@ -258,7 +258,7 @@ describe('PromptsSection', () => {
       prompts: [initialPrompt, initialPrompt],
     });
     expect(showToastMock).toHaveBeenCalledWith(
-      'Prompt duplicated. Each prompt runs across every test case and provider.',
+      'Prompt duplicated. By default it runs across every test case and provider; YAML routing can narrow that set.',
       'success',
     );
 
@@ -345,7 +345,7 @@ describe('PromptsSection', () => {
       ],
     });
     expect(showToastMock).toHaveBeenCalledWith(
-      'Starter prompt added. Each prompt runs across every test case and provider.',
+      'Starter prompt added. By default it runs across every test case and provider; YAML routing can narrow that set.',
       'success',
     );
   });
@@ -399,7 +399,7 @@ describe('PromptsSection', () => {
       prompts: [longLineText],
     });
     expect(showToastMock).toHaveBeenCalledWith(
-      'Prompt imported. Each prompt runs across every test case and provider.',
+      'Prompt imported. By default it runs across every test case and provider; YAML routing can narrow that set.',
       'success',
     );
     expect(fileInput.value).toBe('');

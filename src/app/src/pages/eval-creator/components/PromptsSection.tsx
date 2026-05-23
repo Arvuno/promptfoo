@@ -82,7 +82,7 @@ const PromptsSection = ({ onOpenYamlEditor }: PromptsSectionProps) => {
 
         setPrompts([...prompts, text]);
         showToast(
-          'Prompt imported. Each prompt runs across every test case and provider.',
+          'Prompt imported. By default it runs across every test case and provider; YAML routing can narrow that set.',
           'success',
         );
         event.target.value = '';
@@ -100,7 +100,7 @@ const PromptsSection = ({ onOpenYamlEditor }: PromptsSectionProps) => {
     const duplicatedPrompt = prompts[index];
     setPrompts([...prompts, duplicatedPrompt]);
     showToast(
-      'Prompt duplicated. Each prompt runs across every test case and provider.',
+      'Prompt duplicated. By default it runs across every test case and provider; YAML routing can narrow that set.',
       'success',
     );
   };
@@ -216,7 +216,7 @@ const PromptsSection = ({ onOpenYamlEditor }: PromptsSectionProps) => {
                       'Write a short, fun story about a {{animal}} going on an adventure in {{location}}. Make it entertaining and suitable for children.';
                     setPrompts([...prompts, examplePrompt]);
                     showToast(
-                      'Starter prompt added. Each prompt runs across every test case and provider.',
+                      'Starter prompt added. By default it runs across every test case and provider; YAML routing can narrow that set.',
                       'success',
                     );
                   }}

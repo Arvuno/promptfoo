@@ -64,7 +64,7 @@ const PromptDialog = ({
     } else {
       setCleanPrompt('');
       setAddAnotherStatus(
-        'Prompt added. Each prompt runs across every test case and provider. Enter the next prompt.',
+        'Prompt added. By default it runs across every test case and provider; YAML routing can narrow that set. Enter the next prompt.',
       );
       textareaRef.current?.focus();
     }
@@ -85,8 +85,8 @@ const PromptDialog = ({
           <DialogHeader>
             <DialogTitle>{isEditing ? `Edit Prompt ${index + 1}` : 'Add Prompt'}</DialogTitle>
             <DialogDescription>
-              Each prompt runs once for every test case and provider. Use variables when the input
-              should change between test cases.
+              By default, each prompt runs once for every test case and provider; YAML routing can
+              narrow that set. Use variables when the input should change between test cases.
             </DialogDescription>
           </DialogHeader>
 

@@ -256,7 +256,7 @@ describe('EvaluateTestSuiteCreator', () => {
     expect(screen.getByText('How evaluations work')).toBeInTheDocument();
     expect(
       screen.getByText(
-        'Promptfoo sends each prompt with each test case to every provider, then uses your assertions to decide whether the response passes.',
+        'By default, Promptfoo sends each prompt with each test case to every provider. YAML routing can narrow those requests; assertions decide whether each response passes.',
       ),
     ).toBeInTheDocument();
     expect(screen.getByText('1. Providers')).toBeInTheDocument();
@@ -308,9 +308,9 @@ describe('EvaluateTestSuiteCreator', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Providers: 1 ready' }));
 
     expect(
-      screen.getByText(/Every additional provider receives each prompt and test case combination/),
+      screen.getByText(/By default, each additional provider adds prompt and test case requests/),
     ).toBeInTheDocument();
-    expect(screen.getByText(/potentially increasing usage costs/)).toBeInTheDocument();
+    expect(screen.getByText(/more combinations can increase usage costs/)).toBeInTheDocument();
   });
 
   it('should count shorthand string providers from YAML as configured providers', () => {

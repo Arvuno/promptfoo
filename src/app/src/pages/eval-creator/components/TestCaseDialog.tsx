@@ -24,6 +24,7 @@ interface TestCaseFormProps {
   onAdd: (testCase: TestCase, shouldClose: boolean) => void;
   varsList: string[];
   inheritedAssertions?: AssertionOrSet[];
+  inheritedVars?: Record<string, unknown>;
   initialValues?: TestCase;
   onCancel: () => void;
 }
@@ -41,6 +42,7 @@ const TestCaseForm = ({
   onAdd,
   varsList,
   inheritedAssertions = [],
+  inheritedVars = {},
   initialValues,
   onCancel,
 }: TestCaseFormProps) => {
@@ -58,7 +60,10 @@ const TestCaseForm = ({
   const effectiveAssertions = [...effectiveInheritedAssertions, ...asserts];
   const assertionVariables = getRequiredAssertionVariables(effectiveAssertions);
   const editableVarsList = Array.from(new Set([...varsList, ...assertionVariables]));
-  const missingAssertionVariables = getMissingAssertionVariables(effectiveAssertions, vars);
+  const missingAssertionVariables = getMissingAssertionVariables(effectiveAssertions, {
+    ...inheritedVars,
+    ...vars,
+  });
   const canSave = assertsValid && missingAssertionVariables.length === 0;
   const saveHelpIds = [
     assertsValid ? undefined : 'test-case-assertion-error',
@@ -121,7 +126,7 @@ const TestCaseForm = ({
       setAddAnotherStatus(null);
     } else {
       setAddAnotherStatus(
-        'Test case added. Each test case runs across every prompt and provider. Enter values for the next test case.',
+        'Test case added. By default it runs across every prompt and provider; YAML routing can narrow that set. Enter values for the next test case.',
       );
     }
     setDescription('');
@@ -140,8 +145,9 @@ const TestCaseForm = ({
           <DialogHeader>
             <DialogTitle>{initialValues ? 'Edit Test Case' : 'Add Test Case'}</DialogTitle>
             <DialogDescription>
-              Set inputs for one evaluation example, then add optional pass or fail checks. Each
-              test case runs against every configured prompt and provider.
+              Set inputs for one evaluation example, then add optional pass or fail checks. By
+              default, a test case runs against every configured prompt and provider; YAML routing
+              can narrow that set.
             </DialogDescription>
           </DialogHeader>
 
