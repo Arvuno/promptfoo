@@ -37,8 +37,8 @@ describe('ExtensionEditor', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Incorrect format/)).toBeInTheDocument();
+      expect(onValidationChange).toHaveBeenLastCalledWith(true);
     });
-    expect(onValidationChange).toHaveBeenLastCalledWith(true);
     expect(input).toHaveAttribute('aria-invalid', 'true');
     expect(input).toHaveAccessibleDescription(/Incorrect format/);
   });

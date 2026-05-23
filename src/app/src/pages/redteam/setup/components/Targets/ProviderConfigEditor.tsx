@@ -567,6 +567,7 @@ function ProviderConfigEditor({
     useState<AuthorizationFieldErrors>({});
   const [browserFieldErrors, setBrowserFieldErrors] = useState<BrowserAutomationFieldErrors>({});
   const previousProviderTypeRef = useRef(providerType);
+  const latestProviderRef = useRef(provider);
 
   useEffect(() => {
     if (previousProviderTypeRef.current === providerType) {
@@ -581,6 +582,10 @@ function ProviderConfigEditor({
     setAuthorizationFieldErrors({});
     setBrowserFieldErrors({});
   }, [providerType]);
+
+  useEffect(() => {
+    latestProviderRef.current = provider;
+  }, [provider]);
 
   const validateUrl = useCallback((url: string, type: 'http' | 'websocket' = 'http'): boolean => {
     try {
@@ -609,13 +614,14 @@ function ProviderConfigEditor({
     // Shallow-clone the config along with the target so subsequent
     // assignments and `delete` don't mutate the original provider object
     // by reference (which is React state owned by our parent).
-    const updatedTarget = cloneProvider(provider);
+    const previousTarget = latestProviderRef.current;
+    const updatedTarget = cloneProvider(previousTarget);
 
     if (field === 'id') {
       setAgentIdError(null);
       setCustomIdError(null);
       updatedTarget.id = value as string;
-      if (shouldRemoveMcpConfig(provider.id, updatedTarget.id, providerType)) {
+      if (shouldRemoveMcpConfig(previousTarget.id, updatedTarget.id, providerType)) {
         delete updatedTarget.config.mcp;
       }
     } else if (field === 'url') {
@@ -652,6 +658,7 @@ function ProviderConfigEditor({
       updateGenericProviderField(updatedTarget, field, value);
     }
 
+    latestProviderRef.current = updatedTarget;
     setProvider(updatedTarget);
   };
 
