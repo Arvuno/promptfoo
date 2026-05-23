@@ -607,6 +607,29 @@ describe('ProviderConfigEditor', () => {
       );
     });
 
+    it.each([
+      ['langchain', 'file:///workspace/path/to/customer_support.py'],
+      ['python', 'file:///workspace/path/to/custom_provider.py'],
+    ])('accepts a real %s path whose parent folders contain path/to', (providerType, id) => {
+      const mockSetError = vi.fn();
+      let validateFn: (() => boolean) | null = null;
+
+      renderWithProviders(
+        <ProviderConfigEditor
+          provider={{ id, config: {} }}
+          setProvider={vi.fn()}
+          setError={mockSetError}
+          onValidationRequest={(validator) => {
+            validateFn = validator;
+          }}
+          providerType={providerType}
+        />,
+      );
+
+      expect(validateFn!()).toBe(true);
+      expect(mockSetError).toHaveBeenCalledWith(null);
+    });
+
     it('surfaces custom provider ID validation in the eval configuration form', async () => {
       let validateFn: (() => boolean) | null = null;
 
@@ -890,6 +913,10 @@ describe('ProviderConfigEditor', () => {
 
     expect(screen.getByTestId('custom-config')).toBeInTheDocument();
 
+    act(() => {
+      screen.getByTestId('set-invalid-custom-config').click();
+    });
+
     const changeProviderTypeButton = screen.getByTestId('change-provider-type');
     act(() => {
       changeProviderTypeButton.click();
@@ -897,6 +924,7 @@ describe('ProviderConfigEditor', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('http-config')).toBeInTheDocument();
+      expect(screen.queryByTestId('http-body-error')).not.toBeInTheDocument();
     });
   });
 

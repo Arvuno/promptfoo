@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useRedTeamConfig } from '../../hooks/useRedTeamConfig';
 import AgentFrameworkConfiguration from './AgentFrameworkConfiguration';
@@ -40,8 +40,30 @@ const shouldRemoveMcpConfig = (
   previousTargetId.startsWith('bedrock:converse:') &&
   !nextTargetId.startsWith('bedrock:converse:');
 
+const EXAMPLE_PROVIDER_IDS = [
+  'file:///path/to/custom_provider.js',
+  'file:///path/to/custom_provider.py',
+  'file:///path/to/your/script.go',
+  'file:///path/to/langchain_agent.py',
+  'file:///path/to/autogen_agent.py',
+  'file:///path/to/crewai_agent.py',
+  'file:///path/to/llamaindex_agent.py',
+  'file:///path/to/langgraph_agent.py',
+  'file:///path/to/openai_agents.py',
+  'file:///path/to/pydantic_ai_agent.py',
+  'file:///path/to/google_adk_agent.py',
+  'file:///path/to/claude_agent.py',
+  'file:///path/to/custom_agent.py',
+  'exec:/path/to/script.sh',
+] as const;
+
 const usesExamplePath = (providerId: string | undefined): boolean =>
-  Boolean(providerId?.includes('/path/to/'));
+  Boolean(
+    providerId &&
+      EXAMPLE_PROVIDER_IDS.some(
+        (exampleId) => providerId === exampleId || providerId.startsWith(`${exampleId}:`),
+      ),
+  );
 
 const FOUNDATION_MODEL_TYPES = [
   'openai',
@@ -544,6 +566,21 @@ function ProviderConfigEditor({
   const [authorizationFieldErrors, setAuthorizationFieldErrors] =
     useState<AuthorizationFieldErrors>({});
   const [browserFieldErrors, setBrowserFieldErrors] = useState<BrowserAutomationFieldErrors>({});
+  const previousProviderTypeRef = useRef(providerType);
+
+  useEffect(() => {
+    if (previousProviderTypeRef.current === providerType) {
+      return;
+    }
+    previousProviderTypeRef.current = providerType;
+    setBodyError(null);
+    setUrlError(null);
+    setFoundationFieldErrors({});
+    setAgentIdError(null);
+    setCustomIdError(null);
+    setAuthorizationFieldErrors({});
+    setBrowserFieldErrors({});
+  }, [providerType]);
 
   const validateUrl = useCallback((url: string, type: 'http' | 'websocket' = 'http'): boolean => {
     try {

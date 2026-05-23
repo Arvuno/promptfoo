@@ -2,7 +2,7 @@ import React from 'react';
 
 import { TooltipProvider } from '@app/components/ui/tooltip';
 import { useTelemetry } from '@app/hooks/useTelemetry';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import ProviderTypeSelector from './ProviderTypeSelector';
@@ -110,7 +110,8 @@ describe('ProviderTypeSelector', () => {
     expect(screen.queryByText('Custom Target')).not.toBeInTheDocument();
   });
 
-  it('announces the selected option and keeps documentation keyboard actions separate', () => {
+  it('announces the selected option and keeps documentation keyboard actions separate', async () => {
+    const user = userEvent.setup();
     const setProvider = vi.fn();
 
     renderWithTooltipProvider(
@@ -129,7 +130,8 @@ describe('ProviderTypeSelector', () => {
     const documentationLink = screen.getByRole('link', { name: 'View Python documentation' });
     expect(documentationLink.closest('button')).toBeNull();
 
-    fireEvent.keyDown(documentationLink, { key: 'Enter' });
+    documentationLink.focus();
+    await user.keyboard('{Enter}');
 
     expect(setProvider).not.toHaveBeenCalled();
   });

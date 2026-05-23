@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import FoundationModelConfiguration from './FoundationModelConfiguration';
@@ -178,9 +178,15 @@ describe('FoundationModelConfiguration', () => {
 
     await user.click(screen.getByRole('button', { name: /Advanced Configuration/ }));
 
-    fireEvent.change(screen.getByLabelText('Temperature'), { target: { value: '0' } });
-    fireEvent.change(screen.getByLabelText('Max Tokens'), { target: { value: '0' } });
-    fireEvent.change(screen.getByLabelText('Top P'), { target: { value: '0' } });
+    await user.click(screen.getByLabelText('Temperature'));
+    await user.keyboard('{Control>}a{/Control}');
+    await user.paste('0');
+    await user.click(screen.getByLabelText('Max Tokens'));
+    await user.keyboard('{Control>}a{/Control}');
+    await user.paste('0');
+    await user.click(screen.getByLabelText('Top P'));
+    await user.keyboard('{Control>}a{/Control}');
+    await user.paste('0');
 
     expect(mockUpdateCustomTarget).toHaveBeenCalledWith('temperature', 0);
     expect(mockUpdateCustomTarget).toHaveBeenCalledWith('max_tokens', 0);

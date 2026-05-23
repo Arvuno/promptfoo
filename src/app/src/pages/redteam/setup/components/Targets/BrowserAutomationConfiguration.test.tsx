@@ -1,5 +1,5 @@
 import { renderWithProviders } from '@app/utils/testutils';
-import { fireEvent, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import BrowserAutomationConfiguration from './BrowserAutomationConfiguration';
@@ -121,7 +121,8 @@ describe('BrowserAutomationConfiguration', () => {
     ]);
   });
 
-  it('discloses and saves advanced extraction scripts within extract steps', () => {
+  it('discloses and saves advanced extraction scripts within extract steps', async () => {
+    const user = userEvent.setup();
     const updateCustomTarget = vi.fn();
     renderWithProviders(
       <BrowserAutomationConfiguration
@@ -144,7 +145,9 @@ describe('BrowserAutomationConfiguration', () => {
       /Runs in the target page context and takes priority over the CSS selector/i,
     );
 
-    fireEvent.change(script, { target: { value: 'return document.body.innerText;' } });
+    await user.click(script);
+    await user.keyboard('{Control>}a{/Control}');
+    await user.paste('return document.body.innerText;');
 
     expect(updateCustomTarget).toHaveBeenCalledWith('steps', [
       {

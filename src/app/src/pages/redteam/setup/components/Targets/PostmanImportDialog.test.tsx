@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import PostmanImportDialog from './PostmanImportDialog';
@@ -24,7 +24,8 @@ describe('PostmanImportDialog', () => {
     renderDialog();
 
     const jsonInput = screen.getByLabelText('Postman collection JSON');
-    fireEvent.change(jsonInput, { target: { value: '{invalid' } });
+    await user.click(jsonInput);
+    await user.paste('{invalid');
     await user.click(screen.getByRole('button', { name: 'Parse Collection' }));
 
     const error = screen.getByRole('alert');
@@ -42,9 +43,8 @@ describe('PostmanImportDialog', () => {
     const user = userEvent.setup();
     renderDialog();
 
-    fireEvent.change(screen.getByLabelText('Postman collection JSON'), {
-      target: { value: JSON.stringify({ item: { invalid: true } }) },
-    });
+    await user.click(screen.getByLabelText('Postman collection JSON'));
+    await user.paste(JSON.stringify({ item: { invalid: true } }));
     await user.click(screen.getByRole('button', { name: 'Parse Collection' }));
 
     expect(screen.getByRole('alert')).toHaveTextContent(
@@ -64,9 +64,8 @@ describe('PostmanImportDialog', () => {
       },
     };
 
-    fireEvent.change(screen.getByLabelText('Postman collection JSON'), {
-      target: { value: JSON.stringify(collection) },
-    });
+    await user.click(screen.getByLabelText('Postman collection JSON'));
+    await user.paste(JSON.stringify(collection));
     await user.click(screen.getByRole('button', { name: 'Parse Collection' }));
 
     expect(screen.getByLabelText('Request to import')).toBeInTheDocument();

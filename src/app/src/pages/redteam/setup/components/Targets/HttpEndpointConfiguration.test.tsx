@@ -1,7 +1,7 @@
 import React from 'react';
 
 import { TooltipProvider } from '@app/components/ui/tooltip';
-import { callApi } from '@app/utils/api';
+import { mockCallApiResponseOnce, resetCallApiMock } from '@app/tests/apiMocks';
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -90,6 +90,7 @@ describe('HttpEndpointConfiguration - Header Field Layout', () => {
     mockSetBodyError = vi.fn();
     mockSetUrlError = vi.fn();
     vi.clearAllMocks();
+    resetCallApiMock();
   });
 
   it('should maintain minimum widths for header Name and Value fields on narrow viewports', () => {
@@ -183,17 +184,14 @@ describe('HttpEndpointConfiguration - Header Field Layout', () => {
 
   it('applies generated structured setup when editing an existing raw request', async () => {
     const user = userEvent.setup();
-    vi.mocked(callApi).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        id: 'http',
-        config: {
-          url: 'https://generated.example.com/chat',
-          method: 'POST',
-          body: '{"message":"{{prompt}}"}',
-        },
-      }),
-    } as Response);
+    mockCallApiResponseOnce({
+      id: 'http',
+      config: {
+        url: 'https://generated.example.com/chat',
+        method: 'POST',
+        body: '{"message":"{{prompt}}"}',
+      },
+    });
 
     renderWithProviders(
       <ControlledHttpConfiguration
@@ -258,22 +256,18 @@ describe('HttpEndpointConfiguration - Header Field Layout', () => {
     await user.click(screen.getByRole('button', { name: 'Import' }));
     await user.click(screen.getByRole('menuitem', { name: 'Auto-fill from Example' }));
 
-    vi.mocked(callApi).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        id: 'http',
-        config: { url: 'https://api.example.com/chat', method: 'POST' },
-      }),
-    } as Response);
+    mockCallApiResponseOnce({
+      id: 'http',
+      config: { url: 'https://api.example.com/chat', method: 'POST' },
+    });
     await user.click(screen.getByRole('button', { name: 'Generate' }));
 
     expect(await screen.findByLabelText('Generated Configuration')).toHaveAttribute('readonly');
 
-    vi.mocked(callApi).mockResolvedValueOnce({
-      ok: false,
-      status: 400,
-      json: async () => ({ error: 'Example request could not be parsed' }),
-    } as Response);
+    mockCallApiResponseOnce(
+      { error: 'Example request could not be parsed' },
+      { ok: false, status: 400 },
+    );
     await user.click(screen.getByRole('button', { name: 'Generate' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
