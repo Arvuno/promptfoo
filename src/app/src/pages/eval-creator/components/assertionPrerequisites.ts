@@ -33,7 +33,14 @@ export function getRequiredAssertionVariables(assertions: unknown[] | undefined)
   }
 
   const requiredVariables = ['query'];
-  if (contextAssertions.some((assertion) => assertion.contextTransform === undefined)) {
+  // contextTransform only exists on the regular Assertion variant; getAtomicAssertions
+  // unpacks any assert-set wrappers above, so any remaining item with a context type
+  // is an Assertion, but TypeScript can't narrow that through Set.has — read defensively.
+  if (
+    contextAssertions.some(
+      (assertion) => (assertion as { contextTransform?: unknown }).contextTransform === undefined,
+    )
+  ) {
     requiredVariables.push('context');
   }
   return requiredVariables;

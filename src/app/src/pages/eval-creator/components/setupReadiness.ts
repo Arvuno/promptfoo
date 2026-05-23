@@ -367,7 +367,7 @@ function normalizePromptCandidates(
 
   if (Array.isArray(prompts)) {
     return prompts
-      .map((prompt) => {
+      .map((prompt): NormalizedPrompt | undefined => {
         if (typeof prompt === 'string') {
           return { raw: prompt, label: prompt };
         }
@@ -543,12 +543,13 @@ export function getSetupReadiness(config: Partial<UnifiedConfig>): SetupReadines
     : [];
   const defaultAssertionsApply =
     !Array.isArray(config.tests) ||
-    config.tests.some(
-      (testCase) =>
-        !isRecord(testCase) ||
-        !isRecord(testCase.options) ||
-        testCase.options.disableDefaultAsserts !== true,
-    );
+    config.tests.some((testCase) => {
+      if (!isRecord(testCase)) {
+        return true;
+      }
+      const options = 'options' in testCase ? testCase.options : undefined;
+      return !isRecord(options) || options.disableDefaultAsserts !== true;
+    });
   const defaultTestHasInvalidAssertions =
     defaultAssertionsApply && hasInvalidAssertionValue(config.defaultTest);
 
