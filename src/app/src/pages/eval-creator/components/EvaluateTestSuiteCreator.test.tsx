@@ -1,4 +1,5 @@
 import { DEFAULT_CONFIG, useStore } from '@app/stores/evalConfig';
+import { mockBrowserProperty, restoreBrowserMocks } from '@app/tests/browserMocks';
 import { callApi } from '@app/utils/api';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -93,7 +94,7 @@ describe('EvaluateTestSuiteCreator', () => {
   });
 
   afterEach(() => {
-    vi.unstubAllGlobals();
+    restoreBrowserMocks();
   });
 
   it('disables Reset when a new evaluation has nothing to discard', () => {
@@ -628,7 +629,8 @@ describe('EvaluateTestSuiteCreator', () => {
 
   it('guides recovery when a YAML configuration file cannot be read', async () => {
     const user = userEvent.setup();
-    vi.stubGlobal(
+    mockBrowserProperty(
+      globalThis,
       'FileReader',
       class MockFileReader {
         onerror: ((event: ProgressEvent<FileReader>) => unknown) | null = null;
