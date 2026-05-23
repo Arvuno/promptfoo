@@ -128,10 +128,18 @@ describe('YamlEditor', () => {
     const editor = screen.getByTestId('yaml-editor') as HTMLTextAreaElement;
     await user.click(editor);
     await user.keyboard('{Control>}a{/Control}');
-    await user.paste('description: Saved with shortcut');
+    await user.paste(
+      'description: Saved with shortcut\nproviders:\n  - echo\nprompts:\n  - Say hi\n',
+    );
     await user.keyboard('{Control>}s{/Control}');
 
-    expect(mockUpdateConfig).toHaveBeenCalledWith({ description: 'Saved with shortcut' });
+    expect(mockUpdateConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: 'Saved with shortcut',
+        providers: ['echo'],
+        prompts: ['Say hi'],
+      }),
+    );
     expect(mockShowToast).toHaveBeenCalledWith('Configuration saved successfully', 'success');
     expect(screen.getByRole('button', { name: /Save/ })).toBeDisabled();
   });
@@ -384,7 +392,9 @@ describe('YamlEditor', () => {
 
       await user.click(editor);
       await user.keyboard('{Control>}a{/Control}');
-      await user.paste('description: Valid YAML content');
+      await user.paste(
+        'description: Valid YAML content\nproviders:\n  - echo\nprompts:\n  - Say hi\n',
+      );
 
       // Buttons should be enabled
       expect(saveButton).not.toBeDisabled();

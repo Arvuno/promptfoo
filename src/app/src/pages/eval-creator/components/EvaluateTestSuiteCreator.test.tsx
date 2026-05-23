@@ -483,7 +483,8 @@ describe('EvaluateTestSuiteCreator', () => {
       });
     });
 
-    const mockYamlContent = 'description: Test Config\nproviders:\n  - id: test-provider';
+    const mockYamlContent =
+      'description: Test Config\nproviders:\n  - id: test-provider\ntests:\n  - vars: {}\n';
     const mockFile = new File([mockYamlContent], 'test.yaml', { type: 'application/yaml' });
 
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -532,9 +533,13 @@ describe('EvaluateTestSuiteCreator', () => {
     useStore.getState().updateConfig({ prompts: ['Keep this prompt'] });
     render(<EvaluateTestSuiteCreator />);
 
-    const mockFile = new File(['description: Replacement'], 'replacement.yaml', {
-      type: 'application/yaml',
-    });
+    const mockFile = new File(
+      ['description: Replacement\ntests:\n  - vars: {}\n'],
+      'replacement.yaml',
+      {
+        type: 'application/yaml',
+      },
+    );
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     await user.upload(fileInput, mockFile);
 
@@ -554,9 +559,13 @@ describe('EvaluateTestSuiteCreator', () => {
     await user.click(screen.getByRole('tab', { name: 'YAML Editor' }));
     await user.click(screen.getByRole('button', { name: 'Mock Change YAML' }));
 
-    const mockFile = new File(['description: Replacement'], 'replacement.yaml', {
-      type: 'application/yaml',
-    });
+    const mockFile = new File(
+      ['description: Replacement\ntests:\n  - vars: {}\n'],
+      'replacement.yaml',
+      {
+        type: 'application/yaml',
+      },
+    );
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     await user.upload(fileInput, mockFile);
 
@@ -711,7 +720,7 @@ describe('EvaluateTestSuiteCreator', () => {
     const user = userEvent.setup();
     render(<EvaluateTestSuiteCreator />);
 
-    const mockYamlContent = 'description: Test';
+    const mockYamlContent = 'description: Test\ntests:\n  - vars: {}\n';
     const mockFile = new File([mockYamlContent], 'test.yaml', { type: 'application/yaml' });
 
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
