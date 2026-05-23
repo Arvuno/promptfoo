@@ -28,6 +28,16 @@ vi.mock('./HttpEndpointConfiguration', () => ({
       >
         Set body without prompt
       </button>
+      <button
+        type="button"
+        data-testid="switch-signature-auth-to-basic"
+        onClick={() => {
+          updateCustomTarget?.('signatureAuth', undefined);
+          updateCustomTarget?.('auth', { type: 'basic', username: '', password: '' });
+        }}
+      >
+        Switch signature auth to basic
+      </button>
       {bodyError && <div data-testid="http-body-error">{bodyError}</div>}
       {urlError && <div data-testid="http-url-error">{urlError}</div>}
       {authorizationFieldErrors && Object.keys(authorizationFieldErrors).length > 0 && (
@@ -319,6 +329,38 @@ describe('ProviderConfigEditor', () => {
       const message = await screen.findByTestId('http-body-error');
       expect(message).toHaveTextContent(/replaces with each test input at run time/i);
       expect(message).not.toHaveTextContent(/attack payload/i);
+    });
+
+    it('preserves cleared signature auth across sequential HTTP configuration updates', async () => {
+      const user = userEvent.setup();
+      const setProvider = vi.fn();
+
+      renderWithProviders(
+        <ProviderConfigEditor
+          provider={{
+            id: 'http',
+            config: {
+              url: 'https://api.example.com/chat',
+              body: { message: '{{prompt}}' },
+              signatureAuth: { enabled: true, certificateType: 'pem', keyInputType: 'upload' },
+            },
+          }}
+          setProvider={setProvider}
+          providerType="http"
+          mode="eval"
+        />,
+      );
+
+      await user.click(screen.getByTestId('switch-signature-auth-to-basic'));
+
+      expect(setProvider).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          config: expect.objectContaining({
+            signatureAuth: undefined,
+            auth: { type: 'basic', username: '', password: '' },
+          }),
+        }),
+      );
     });
 
     it('places required raw HTTP request feedback at the active request field', () => {
