@@ -7,3 +7,6 @@ Please refer to the guidelines on our website at [promptfoo.dev/docs/contributin
 - Renovate manages dependency bumps for this repo.
 - New npm releases are delayed before PRs open (runtime deps: 5 days, dev deps: 2 days) to absorb supply-chain incidents and unpublish windows.
 - Please avoid manual bumps unless urgent (e.g., critical security fixes).
+
+## Contributors
+- Documentation improvements (2026)
